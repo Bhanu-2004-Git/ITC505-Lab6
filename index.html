@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ITC 505 – Lab 6 (Holy Grail + Game) | Bhanu</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af;
+      --accent:#38bdf8; --card:#0b1220; --ring:#22d3ee;
+    }
+    * { box-sizing:border-box }
+    body{
+      margin:0; color:var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans";
+      background: linear-gradient(180deg,#0b1020,#0b0f1a 45%,#0a0d18);
+    }
+
+    /* Holy Grail grid */
+    .wrap{
+      min-height:100svh;
+      display:grid;
+      gap:12px; padding:12px;
+      grid-template-columns:220px 1fr 260px;
+      grid-template-rows:auto 1fr auto;
+      grid-template-areas:
+        "header header header"
+        "nav    main   aside"
+        "footer footer footer";
+    }
+    header, nav, main, aside, footer{
+      background: color-mix(in oklab, var(--panel) 92%, black 8%);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:14px;
+      box-shadow:0 8px 24px rgba(0,0,0,.35);
+    }
+
+    header{ grid-area:header; display:flex; align-items:center; gap:16px; padding:14px 16px; background:linear-gradient(90deg,#0b1220,#0b1628) }
+    header img.logo{ width:44px; height:44px; border-radius:10px; object-fit:cover; border:1px solid rgba(255,255,255,.12) }
+    header h1{ margin:0; font-size:1.25rem }
+    header .sub{ color:var(--muted); font-size:.9rem }
+
+    nav{ grid-area:nav; padding:12px }
+    nav h2{ margin:0 0 10px 0; font-size:1rem; color:var(--accent) }
+    nav ul{ list-style:none; margin:0; padding:0; display:grid; gap:8px }
+    nav a{ display:block; padding:10px 12px; text-decoration:none; color:var(--ink); background:var(--card);
+      border:1px solid rgba(255,255,255,.06); border-radius:10px; transition:transform .08s ease, border-color .2s ease }
+    nav a:hover{ transform:translateY(-1px); border-color:rgba(56,189,248,.6) }
+
+    main{ grid-area:main; padding:16px; display:grid; gap:14px }
+    .card{ background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:14px }
+    .card h3{ margin:0 0 8px 0; font-size:1.05rem; color:var(--accent) }
+
+    /* Game */
+    .game-wrap{ display:grid; gap:10px }
+    .controls{ display:flex; gap:8px; flex-wrap:wrap }
+    button, .kbd {
+      padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12);
+      background:#0b1220; color:var(--ink); font-weight:600; letter-spacing:.02em; cursor:pointer;
+      box-shadow:0 6px 16px rgba(34,211,238,.15); transition:transform .06s ease
+    }
+    button:hover{ transform:translateY(-1px) }
+    .hud{ display:flex; gap:14px; color:var(--muted); font-size:.95rem; flex-wrap:wrap }
+    canvas{ display:block; width:100%; max-width:640px; height:auto; border-radius:12px;
+      border:1px solid rgba(255,255,255,.10); background:#061024; }
+    .hint{ color:var(--muted); font-size:.9rem }
+
+    aside{ grid-area:aside; padding:12px; display:grid; align-content:start; gap:10px }
+    .ad{ display:block; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.10) }
+    .ad img{ display:block; width:100%; height:auto }
+    .ad small{ display:block; padding:8px 10px; background:#0b1628; color:var(--muted); border-top:1px solid rgba(255,255,255,.08) }
+
+    footer{ grid-area:footer; padding:14px 16px; display:grid; gap:10px }
+    footer h4{ margin:0; color:var(--accent) }
+    .meta{ color:var(--muted); font-size:.9rem }
+
+    @media (max-width:900px){
+      .wrap{ grid-template-columns:1fr; grid-template-areas:"header" "nav" "main" "aside" "footer" }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Header -->
+    <header>
+      <img class="logo" src="https://upload.wikimedia.org/wikipedia/commons/3/30/Vector-based_example.svg" alt="Site logo" />
+      <div>
+        <h1>ITC 505 – Lab 6: Holy Grail Layout + Mini Game</h1>
+        <div class="sub">Student: <strong>Bhanu</strong> • Path: <code>/itc505/lab-6/index.html</code></div>
+      </div>
+    </header>
+
+    <!-- Left Menu -->
+    <nav aria-label="Primary">
+      <h2>Site Navigation</h2>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Labs</a></li>
+        <li><a href="#">Projects</a></li>
+        <li><a href="#">Notes</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </nav>
+
+    <!-- Main Content (Game) -->
+    <main>
+      <section class="card">
+        <h3>Bhanu’s Paddle Bounce</h3>
+        <p class="hint">
+          Use <span class="kbd">←</span> and <span class="kbd">→</span> (or <span class="kbd">A</span>/<span class="kbd">D</span>) to move the paddle.
+          Keep the ball from falling! Earn 1 point per paddle hit. You have 3 lives.
+        </p>
+
+        <div class="game-wrap">
+          <div class="controls">
+            <button id="startBtn">Start</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+          <div class="hud">
+            <div>Score: <strong id="score">0</strong></div>
+            <div>Lives: <strong id="lives">3</strong></div>
+            <div>Speed: <strong id="speed">1.0x</strong></div>
+          </div>
+          <canvas id="game" width="640" height="420" aria-label="Paddle bounce game canvas"></canvas>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>What this demonstrates</h3>
+        <ul>
+          <li>Holy Grail layout using CSS Grid (header, nav, main, ad, footer).</li>
+          <li>Interactive JavaScript game responding to keyboard and button events.</li>
+          <li>Canvas drawing, collision detection, score/lives tracking, and simple game loop with <code>requestAnimationFrame</code>.</li>
+        </ul>
+      </section>
+    </main>
+
+    <!-- Right Ad (SFW) -->
+    <aside>
+      <a class="ad" href="https://www.amazon.com/SanDisk-128GB-Ultra-Flash-Drive/dp/B081QSJNRJ/ref=sr_1_1?crid=TGP44FFQMHZL&dib=eyJ2IjoiMSJ9.MOCbQmO7_tAxoUggoRicYq29a3QYyPW8PFKd09LV_NWnY5xxB36KI6m-uPOK-W8-DODt9cXkJUuDtqFYj7UA7F2hn6c-nS6V2Hfrc_-EYnYsv0clJJZqHH7D_1ghYCnYjM1GD9OaDlzUCFp3mwF0emYR1mjtJt7jf_MQj_b4ZbPwBi5F_tR79Dh4HdNH_WrPGjhass7abtggC9I1uq0glG1TT8e4AMHZ5J61edY8Qnk.V4bxLIMyk7WnBlQDk0gEgFO5g8gC80DGPgQz3kxpAAU&dib_tag=se&keywords=sandisk%2Busb%2Bflash%2Bdrive%2B128gb&qid=1761609452&sprefix=sandisk%2Busb%2Caps%2C203&sr=8-1&th=1" target="_blank" rel="noopener noreferrer"
+         aria-label="View the product on Amazon (SanDisk 128GB USB 3.1 Flash Drive)">
+        <img src="C:\Users\hp\Downloads\sandisk 128 gb.jpg"
+             alt="SanDisk 128GB USB 3.1 Flash Drive product image" />
+        <small>Advertisement: SanDisk 128GB USB 3.1 Flash Drive (SFW)</small>
+      </a>
+    </aside>
+
+    <!-- Footer / Addendum -->
+    <footer>
+      <h4>Addendum (Lab 6)</h4>
+      <p>
+        <strong>Problem solved:</strong> Build a simple browser game that reacts to user input and updates the UI in real time within a Holy Grail layout.<br />
+        <strong>How it was solved:</strong> I implemented a paddle-and-ball game on an HTML5 canvas. The game loop uses
+        <code>requestAnimationFrame</code>. Keyboard listeners move the paddle; collisions with the paddle increment the score and slightly increase ball speed. Buttons start, pause, and reset. Layout is built with CSS Grid and adapts for small screens.<br />
+        <strong>Difficulties & solutions:</strong> Smoothing paddle movement and avoiding “tunneling” were key. I used per-frame input flags (left/right booleans) and small step updates to reduce jitter. For consistent speed, movement is scaled by a delta time. I also added simple clamping on the paddle and randomized ball restart angles for fairness.
+      </p>
+      <div class="meta">Last modified: <span id="lastMod">…</span></div>
+    </footer>
+  </div>
+
+  <script>
+    // Footer last-modified
+    (function(){
+      const el = document.getElementById('lastMod');
+      const lm = new Date(document.lastModified);
+      el.textContent = isNaN(lm.getTime()) ? document.lastModified : lm.toLocaleString();
+    })();
+
+    // === Game ===
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const speedEl = document.getElementById('speed');
+
+    const W = canvas.width, H = canvas.height;
+
+    // Game state
+    const state = {
+      running: false,
+      lastTime: 0,
+      score: 0,
+      lives: 3,
+      speedScale: 1.0,
+    };
+
+    const paddle = {
+      w: 110, h: 14,
+      x: (W-110)/2, y: H-40,
+      vx: 520, // px/s
+      left:false, right:false
+    };
+
+    const ball = {
+      r: 8,
+      x: W/2, y: H/2,
+      vx: 180, vy: -220  // px/s
+    };
+
+    function resetBall(){
+      ball.x = W/2;
+      ball.y = H/2;
+      const angle = (Math.random()*Math.PI/2) + Math.PI/4; // 45–135°
+      const speed = 260 + Math.random()*60;
+      ball.vx = Math.cos(angle)*(Math.random()<0.5? -1:1)*speed;
+      ball.vy = -Math.abs(Math.sin(angle))*speed;
+    }
+
+    function resetGame(){
+      state.score = 0; scoreEl.textContent = state.score;
+      state.lives = 3; livesEl.textContent = state.lives;
+      state.speedScale = 1.0; speedEl.textContent = state.speedScale.toFixed(1) + "x";
+      paddle.x = (W - paddle.w)/2;
+      resetBall();
+    }
+    resetGame();
+
+    // Input
+    window.addEventListener('keydown', (e)=>{
+      if (e.key === 'ArrowLeft' || e.key.toLowerCase()==='a') paddle.left = true;
+      if (e.key === 'ArrowRight'|| e.key.toLowerCase()==='d') paddle.right = true;
+      if (e.key === ' ') toggleRun();
+    });
+    window.addEventListener('keyup', (e)=>{
+      if (e.key === 'ArrowLeft' || e.key.toLowerCase()==='a') paddle.left = false;
+      if (e.key === 'ArrowRight'|| e.key.toLowerCase()==='d') paddle.right = false;
+    });
+
+    // Buttons
+    document.getElementById('startBtn').addEventListener('click', ()=>{ state.running = true; state.lastTime = performance.now(); requestAnimationFrame(loop); });
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{ state.running = false; });
+    document.getElementById('resetBtn').addEventListener('click', ()=>{ state.running = false; resetGame(); draw(); });
+
+    function toggleRun(){
+      state.running = !state.running;
+      if (state.running){ state.lastTime = performance.now(); requestAnimationFrame(loop); }
+    }
+
+    // Update & draw
+    function update(dt){
+      // Paddle move
+      const move = (paddle.right - paddle.left) * paddle.vx * dt;
+      paddle.x += move;
+      if (paddle.x < 0) paddle.x = 0;
+      if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
+
+      // Ball move
+      ball.x += ball.vx * dt * state.speedScale;
+      ball.y += ball.vy * dt * state.speedScale;
+
+      // Walls
+      if (ball.x - ball.r < 0){ ball.x = ball.r; ball.vx *= -1; }
+      if (ball.x + ball.r > W){ ball.x = W - ball.r; ball.vx *= -1; }
+      if (ball.y - ball.r < 0){ ball.y = ball.r; ball.vy *= -1; }
+
+      // Paddle collision
+      if (ball.y + ball.r >= paddle.y &&
+          ball.y + ball.r <= paddle.y + paddle.h + 8 &&
+          ball.x >= paddle.x && ball.x <= paddle.x + paddle.w &&
+          ball.vy > 0){
+        ball.y = paddle.y - ball.r;
+        ball.vy *= -1;
+
+        // Add some english based on where it hits
+        const hitPoint = (ball.x - (paddle.x + paddle.w/2)) / (paddle.w/2);
+        ball.vx += hitPoint * 80;
+
+        state.score += 1;
+        scoreEl.textContent = state.score;
+
+        // Slightly ramp difficulty
+        state.speedScale = Math.min(2.2, state.speedScale + 0.05);
+        speedEl.textContent = state.speedScale.toFixed(1) + "x";
+      }
+
+      // Missed
+      if (ball.y - ball.r > H){
+        state.lives -= 1; livesEl.textContent = state.lives;
+        state.speedScale = 1.0; speedEl.textContent = state.speedScale.toFixed(1) + "x";
+        if (state.lives <= 0){
+          // Game over
+          state.running = false;
+        }
+        resetBall();
+      }
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+
+      // Background grid
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      for (let x=0; x<W; x+=20){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.strokeStyle="#8ab4f8"; ctx.stroke(); }
+      for (let y=0; y<H; y+=20){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.strokeStyle="#8ab4f8"; ctx.stroke(); }
+      ctx.restore();
+
+      // Paddle
+      ctx.fillStyle = "#38bdf8";
+      roundRect(ctx, paddle.x, paddle.y, paddle.w, paddle.h, 8);
+      ctx.fill();
+
+      // Ball
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+      ctx.fillStyle = "#22d3ee";
+      ctx.fill();
+
+      // HUD text
+      ctx.fillStyle = "rgba(229,231,235,.9)";
+      ctx.font = "16px ui-monospace, Menlo, Consolas, monospace";
+      ctx.fillText(`Bhanu • Score ${state.score} • Lives ${state.lives}`, 12, 22);
+
+      if (!state.running){
+        ctx.fillStyle = "rgba(0,0,0,.55)";
+        ctx.fillRect(0,0,W,H);
+        ctx.fillStyle = "#e5e7eb";
+        ctx.font = "28px ui-sans-serif, system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("Bhanu’s Paddle Bounce", W/2, H/2 - 20);
+        ctx.font = "16px ui-sans-serif, system-ui";
+        if (state.lives <= 0){
+          ctx.fillText(`Game Over — Final Score: ${state.score}`, W/2, H/2 + 10);
+          ctx.fillText("Press Start or Space to play again", W/2, H/2 + 34);
+        } else {
+          ctx.fillText("Press Start or Space to begin", W/2, H/2 + 10);
+        }
+        ctx.textAlign = "left";
+      }
+    }
+
+    function loop(ts){
+      if (!state.running){ draw(); return; }
+      const dt = Math.min(0.033, (ts - state.lastTime)/1000); // clamp delta
+      state.lastTime = ts;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function roundRect(ctx, x, y, w, h, r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr, y);
+      ctx.arcTo(x+w, y, x+w, y+h, rr);
+      ctx.arcTo(x+w, y+h, x, y+h, rr);
+      ctx.arcTo(x, y+h, x, y, rr);
+      ctx.arcTo(x, y, x+w, y, rr);
+      ctx.closePath();
+    }
+
+    // Keep paddle above bottom border
+    paddle.y = H - 40;
+
+    // Initial draw
+    draw();
+  </script>
+</body>
+</html>
